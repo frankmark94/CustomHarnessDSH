@@ -1,0 +1,26 @@
+# DeepSeek Harness — settings
+# Docs: https://github.com/deepseek-ai/deepseek-harness/blob/main/docs/user/guide/providers.md
+#
+# The API key is NOT stored here. It is read from the OPENROUTER_API_KEY
+# environment variable, which start-dsh.cmd sets before launching.
+
+llm-pi-ai:
+  providers:
+    # OpenCode Zen — pay-as-you-go credits. DeepSeek V4 works here without the
+    # region opt-in, but a zero balance answers 401 "CreditsError", which the
+    # harness shows as "API key is invalid".
+    opencode:
+      apiKeyEnv: OPENCODE_API_KEY
+    # OpenCode Go — the subscription. Same key. Rejects every request lacking
+    # x-opencode-session (400 MissingSessionID); this harness build never sends
+    # it, so a stable id is pinned here. DeepSeek V4 needs the China opt-in on Go.
+    opencode-go:
+      apiKeyEnv: OPENCODE_API_KEY
+      headers: { x-opencode-session: dsh-frank-home }
+ui-onboarding:
+  welcomeNoticeVersion: 2026-08-13.1
+agent-default-model:
+  provider: opencode-go        # your $10/month plan. `opencode` (Zen) needs prepaid credits.
+  model: qwen3.8-flash         # the router re-picks the tier per call anyway
+ui-theme:
+  preference: dark

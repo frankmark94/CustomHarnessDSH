@@ -1,0 +1,5 @@
+{
+  "name": "dsh-local-plugins",
+  "private": true,
+  "type": "module"
+}

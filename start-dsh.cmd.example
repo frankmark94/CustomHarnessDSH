@@ -1,0 +1,63 @@
+@echo off
+setlocal
+REM ===================================================================
+REM  DeepSeek Harness launcher
+REM  First run installs ~532 packages (several minutes, with progress).
+REM  Every run after that starts in seconds.
+REM ===================================================================
+
+cd /d "%~dp0"
+
+set "DSH_HOME=%~dp0"
+if "%DSH_HOME:~-1%"=="\" set "DSH_HOME=%DSH_HOME:~0,-1%"
+
+set "OPENROUTER_API_KEY=PASTE-YOUR-KEY-HERE"
+
+where node >nul 2>&1
+if errorlevel 1 (
+  echo [ERROR] Node.js is not installed or not on PATH.
+  echo         Install the LTS build from https://nodejs.org then re-run this file.
+  pause
+  exit /b 1
+)
+
+REM ---- install locally on first run, so progress is visible ----
+if not exist "node_modules\.bin\dsh.cmd" (
+  echo.
+  echo  ================================================================
+  echo   FIRST-TIME SETUP - installing DeepSeek Harness
+  echo   About 532 packages. This takes several minutes. Progress below.
+  echo   You only pay this cost once.
+  echo  ================================================================
+  echo.
+  call npm install @deepseek-ai/dsh@latest --no-fund --no-audit --loglevel=http
+  if errorlevel 1 (
+    echo.
+    echo [ERROR] Install failed. Scroll up for the reason.
+    pause
+    exit /b 1
+  )
+  echo.
+  echo  Install complete.
+  echo.
+)
+
+echo.
+echo  DSH_HOME = %DSH_HOME%
+echo.
+echo  Starting server. The FIRST boot also builds %%DSH_HOME%%\profiles\web,
+echo  which adds another minute or two of silence - this is normal.
+echo.
+echo  WAIT for this exact line to appear:
+echo        dsh web: http://127.0.0.1:3080
+echo  The page will NOT load before that line shows up.
+echo.
+echo  Ctrl+C to stop the server.
+echo  ---------------------------------------------------------------
+echo.
+
+call "node_modules\.bin\dsh.cmd" web
+
+echo.
+echo Server stopped.
+pause

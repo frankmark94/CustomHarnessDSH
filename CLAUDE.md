@@ -1,0 +1,55 @@
+# CLAUDE.md — DeepSeekHarness
+
+This folder is a **DeepSeek Harness (`dsh`) home directory**, not a source
+repo. `start-dsh.cmd` sets `DSH_HOME` to this folder and launches the web UI
+(`http://127.0.0.1:3080`). Everything the harness reads or writes lives here:
+settings, credentials, profiles, sessions, storage, and two **local plugins**
+in `plugins/` that are the only code we own.
+
+## What's ours vs. the harness's
+
+| Path | Ours? | Notes |
+|---|---|---|
+| `plugins/model-router/index.js` | yes | Per-provider fast/standard/reasoning model routing (`/router`) |
+| `plugins/token-ledger/index.js` | yes | Expected-vs-actual token + USD accounting (`/tokens`) |
+| `plugins/harness-panel/{index,client,package}.js(on)` | yes | Right-hand live dashboard in the web UI. Host half = `harnessPanel` session projection; `client.js` is browser code in the harness's client-module form (hot-reloaded); `package.json` declares `dsh.client` so the harness serves it |
+| `plugins/README.md` | yes | Design notes for both plugins — read before changing them |
+| `cordis.patch.yml` (top level) | yes | Home-level patch layer: mounts + configures the plugins for every profile |
+| `settings.yaml` | yes | Provider profiles (`llm-pi-ai`), default model, theme; hot-reloaded |
+| `start-dsh.cmd` | yes | Launcher. **Contains the OpenRouter API key** — never commit or paste it |
+| `README-SETUP.md` | yes | Human setup notes |
+| `node_modules/` | no | The installed harness (`@deepseek-ai/dsh` + ~200 `@deepseek-ai/dsh-*` packages). Read for API facts, never edit |
+| `profiles/`, `sessions/`, `storages/`, `model-router/`, `token-ledger/` | no | Harness state and our plugins' output. Don't hand-edit |
+| `.credentials.yaml`, `.anonymous-user-id` | no | Managed by the harness |
+
+## Running and checking
+
+- Start: `start-dsh.cmd` (Windows). Elsewhere: `set DSH_HOME=<this folder>` then `node node_modules/@deepseek-ai/dsh/lib/bin.js web`.
+- Compose check without booting: `node node_modules/@deepseek-ai/dsh/lib/bin.js --profile web --dump-config` — verify the `model-router` / `token-ledger` rows appear with `name: file:///…/plugins/...`.
+- Patch edits (`cordis.patch.yml`) apply live. **Plugin code edits need a restart.**
+- Plugin logic is unit-testable with a fake context: give it `on`, `inject`, `effect`, `get`, `logger`, and a `waterfall(thisArg, name, ...args, inner)` that chains listeners, then call `apply(ctx, Config(cfg))`. Both modules also export their pure helpers (`classifyPrompt`, `estimateRequest`, `costUsd`).
+- Router decisions: `model-router/decisions.jsonl`. Ledger: `token-ledger/totals.json`, `token-ledger/sessions/<id>.json`.
+
+## Harness plugin conventions (learned the hard way)
+
+- A plugin is an ES module exporting `name`, `inject` (service names it needs), `Config` (a `@deepseek-ai/schemastery` schema — defaults are applied before `apply` runs) and `apply(ctx, config)`. Optional services: `ctx.inject(['commands'], (cctx) => …)`. Dispose with `ctx.effect(() => disposer, label)`.
+- Rows in a patch file: `- insert: [{ id, name, config }]`. A patch **replaces the whole `config`** of a row, so restate every key. A relative `name` resolves **against the patch file's own folder** (`./plugins/...` from the top-level patch), which the harness rewrites to an absolute `file://` URL.
+- Model switching per request: the `agent/request` waterfall (`ctx.on('agent/request', async (payload, next) => { const base = await next(); return replacement; })`). **Register it with prepend (`ctx.on('agent/request', fn, true)`)**: `dsh-api-session-controller` installs a per-agent `agent/request` listener that force-applies the model selection (explicit picker choice, else the last logged header), and cordis waterfalls give the *first-registered* listener the final say — a live patch reload re-registers our plugin last, and without prepend every reroute is silently undone (seen 2026-09-07). Explicit picker choices show up as `ctx.sessionProjections.stateOf(session, 'modelSelection').pending`. The loop logs the changed `request/header` itself. When changing the model, drop `reasoningEffort`/`maxTokens` unless the tier sets them — they are model-specific and an unsupported effort rejects before I/O.
+- Observing/rerouting every model call: the `llm/stream` waterfall (`this` is the `LlmRuntime`; return `next()` or `this.stream(otherOptions)`; an `async function*` that yields `next()`'s chunks works). Loop-built requests are deep-frozen — read, never mutate; spread into a new object instead.
+- **Never `session.append()` a custom event type.** This rc refuses to reload a session log containing unknown event types (`KNOWN_SESSION_EVENT_TYPES` in `dsh-session`), and `append()` can't set the `ignorable` marker. Keep plugin state in your own files under `DSH_HOME`.
+- Token estimates: the harness's meter uses 4 chars/token + 4 per block + 4 per message; `ctx.tokenMeter.estimateMessage(m)` and `ctx.tokenMeter.measure(session)` (context pressure) are public.
+- Model prices/context windows: `import('@earendil-works/pi-ai/providers/<catalog>.models')` → `<CATALOG>_MODELS[id].cost` (per 1M tokens). Harness route `deepseek-official` = catalog `deepseek`; `opencode-go` and `openrouter` match by name.
+- **Browser code from a local plugin**: give the plugin folder its own `package.json` with `"exports": {"./client": "./client.js"}` and `"dsh": {"client": {"platform": "web", "inject": [...]}}` (the loader walks up from the row's `index.js` to the nearest `package.json`, so `plugins/package.json` would otherwise claim it). `client.js` is hand-written in the `window.__ModuleLoader__.load({ id: <package name>, factory: (require) => ({ inject, apply(ctx) {…} }) })` form; only `react`, `react-dom`, `@deepseek-ai/cordis`, `dsh-client-store`, `dsh-client-ui-slots`, `dsh-client-ui-primitives` are requirable. Register UI with `ctx.slots.inject(key, () => ctx.slots.register({ name: key, … }, Component))`; the slot catalog (60 slots, kinds, props, examples) is in `dsh-cordis-client-runner/lib/client.js` around line 2137. `details` is the right column (single slot — registering shadows ui-chat's tool inspector), `conversation.view` is the Chat/Trajectory tab strip (list — additive), `shell.overlay` floats over everything. Client edits hot-reload (~500 ms); host edits need a restart.
+- **Host → browser data**: register a session projection (`ctx.sessionProjections.register({ key, stateVersion, stateSchema, init, apply, wire: { viewSchema, view } })`, zod schemas from `node_modules/zod`). `apply` must be a pure sync fold over session events returning the same reference when uninterested; the harness broadcasts every changed view and the browser reads it with the `useProjection(key)` standard prop. `request/header` is only logged when the route CHANGES, so carry provider/model forward per turn. Bump `stateVersion` whenever the fold or state shape changes (cached rows are discarded).
+- Sessions must stay reconstructable from their log; plugins must not hold state the loop depends on. Windows: the harness uses PowerShell tool rows (`tool-pwsh`), bash rows are disabled by platform.
+
+## Provider / model facts (Sept 2026)
+
+Default provider in `settings.yaml` is `opencode-go` (default model is whatever `agent-default-model` says there; the router overrides it per call anyway). **OpenCode Go returns `400 MissingSessionID` for any request without an `x-opencode-session` header**, and this harness build's pi-ai client never sends one, so `settings.yaml` pins a static one via the provider profile's `headers:` map — keep it. DeepSeek V4 models on OpenCode Go return `403 RegionError` (China-hosted, needs a per-workspace opt-in at opencode.ai) and the harness shows that as "API key is invalid"; until the opt-in, the `opencode-go` tiers use `qwen3.8-flash` / `minimax-m3` / `glm-5.3` (see the comment in the patch). Router tiers per provider are in `cordis.patch.yml`; catalog list prices ($ per 1M in/out): `qwen3.8-flash` 0.15/0.47, `deepseek-v4-flash` 0.22/0.66, `deepseek-v4-pro` 0.66/1.98, `glm-5.3-flash` 0.075/0.25 (all `opencode-go`); native `deepseek-official` is cheaper for the same DeepSeek models (0.14/0.28, 0.435/0.87).
+
+## Working agreements
+
+- Don't touch `node_modules/`, `profiles/`, or session/storage state; don't run `npm install` here unless upgrading the harness on purpose (the version is pinned in `package.json`).
+- Keep the two plugins dependency-free beyond what the harness already installs.
+- Any new plugin: add it under `plugins/<name>/index.js`, mount it in the top-level `cordis.patch.yml`, document it in `plugins/README.md`, and confirm with `--dump-config`.
+- Stale `profiles/node_modules.lock` after a crashed boot blocks the next start ("timed out waiting for the writer lock") — delete it.

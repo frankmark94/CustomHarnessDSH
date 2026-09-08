@@ -1,0 +1,13 @@
+{
+  "name": "deepseek-harness-local",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local DeepSeek Harness setup, configured for OpenRouter",
+  "scripts": {
+    "start": "dsh web",
+    "start:alt-port": "dsh web --port 3081"
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh": "^0.1.2-rc.1"
+  }
+}

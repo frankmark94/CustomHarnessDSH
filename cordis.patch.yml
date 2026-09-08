@@ -1,0 +1,97 @@
+# DeepSeek Harness — home-level patch layer ($DSH_HOME/cordis.patch.yml).
+#
+# The harness applies this file to EVERY profile (web, headless, …) after the
+# bundle layers and the profile's own cordis.patch.yml. Rows are addressed by
+# id; a row here replaces the target's whole `config`, so restate every key you
+# want to keep. Edits apply live (patchReload: live) — no restart needed.
+#
+# Two local plugins live in ./plugins and are mounted here. Their `name` is a
+# path relative to this file (the harness rewrites it to an absolute file URL
+# when composing the profile).
+
+- insert:
+    # ── Model router ─────────────────────────────────────────────────────────
+    # Picks a tier (fast / standard / reasoning) for every model call from the
+    # prompt and the state of the turn, then routes to that tier's model on the
+    # session's CURRENT provider. Add a `profiles.<provider>` block for each
+    # provider you use; providers without a block are left untouched.
+    # Runtime control from the chat: /router status | on | off | pin <tier> | auto
+    - id: model-router
+      name: ./plugins/model-router/index.js
+      config:
+        mode: auto                 # auto | off
+        defaultTier: standard
+        stickyWithinTurn: true     # keep step-1 tier for the whole turn (KV-cache friendly)
+        escalateOnToolErrors: 2    # bump to reasoning after N errored tool calls in a turn (0 = never)
+        auxiliaryTier: fast        # compaction summaries + session titles; `off` to leave them alone
+        profiles:
+          # OpenCode Go (current default provider in settings.yaml)
+          # NOTE (2026-09-07): deepseek-v4-flash / deepseek-v4-pro on OpenCode Go
+          # return 403 RegionError ("hosted in China, requires explicit opt in")
+          # until you opt in at https://opencode.ai/workspace/<id>/go — the harness
+          # shows that as "API key is invalid". Once opted in, swap them back:
+          #   standard:  { model: deepseek-v4-flash }  # $0.22 / $0.66
+          #   reasoning: { model: deepseek-v4-pro }    # $0.66 / $1.98
+          opencode-go:
+            fast:      { model: qwen3.8-flash }      # $0.15 / $0.47 per 1M in/out
+            standard:  { model: minimax-m3 }         # $0.30 / $1.20, 1M ctx
+            reasoning: { model: glm-5.3 }            # $1.40 / $4.40, 1M ctx
+          # OpenCode Zen (pay-as-you-go credits, provider id `opencode`). Same key
+          # as Go. DeepSeek V4 is not region-locked here. Needs a credit balance.
+          opencode:
+            fast:      { model: deepseek-v4-flash }  # $0.14 / $0.28 per 1M in/out
+            standard:  { model: deepseek-v4-flash }
+            reasoning: { model: deepseek-v4-pro }    # $0.435 / $0.87
+          # Native DeepSeek platform key (the harness's built-in route)
+          deepseek-official:
+            fast:      { model: deepseek-v4-flash }  # $0.14 / $0.28
+            standard:  { model: deepseek-v4-flash }
+            reasoning: { model: deepseek-v4-pro }    # $0.435 / $0.87
+          # OpenRouter (custom pi-ai provider, id `openrouter`)
+          openrouter:
+            fast:      { model: deepseek/deepseek-v4-flash }
+            standard:  { model: deepseek/deepseek-chat }
+            reasoning: { model: deepseek/deepseek-v4-pro }
+        heuristics:
+          shortPromptWords: 25
+          longPromptWords: 120
+        logDir: !!js dshHomePath('model-router')
+
+    # ── Harness panel ────────────────────────────────────────────────────────
+    # Right-hand live dashboard in the web UI (replaces the mostly-empty
+    # "Details" column): what is running and for how long, model + router tier
+    # and reasons, spend (actual vs expected, per model, today, all time),
+    # context pressure, tool timeline with an inspector, plan progress, turn
+    # history, and the last provider error with a plain-language hint.
+    # Host half registers the `harnessPanel` session projection; the browser
+    # half is plugins/harness-panel/client.js (hot-reloaded by the harness).
+    - id: harness-panel
+      name: ./plugins/harness-panel/index.js
+      config:
+        catalogProviders:
+          opencode-go: opencode-go
+          opencode: opencode
+          deepseek-official: deepseek
+          openrouter: openrouter
+        maxTools: 40
+        maxTurns: 30
+        argsChars: 600
+        resultChars: 1500
+        ledgerDir: !!js dshHomePath('token-ledger')
+
+    # ── Token ledger ─────────────────────────────────────────────────────────
+    # Prices every request before it is sent (system + tools + messages, plus a
+    # per-model expected-output allowance), then reconciles with the provider's
+    # reported usage. Running totals per session / model / day, in tokens and
+    # USD (prices from the bundled model catalog; override under `pricing`).
+    # From the chat: /tokens | /tokens all | /tokens last 10 | /tokens reset
+    - id: token-ledger
+      name: ./plugins/token-ledger/index.js
+      config:
+        announce: log              # log | silent  (per-call lines in the harness console)
+        expectedOutputTokens: 600  # allowance before a model has history
+        historyLimit: 200
+        catalogProviders:
+          deepseek-official: deepseek
+        pricing: {}                # e.g. "openrouter/deepseek/deepseek-chat": { input: 0.26, output: 1.03 }
+        ledgerDir: !!js dshHomePath('token-ledger')

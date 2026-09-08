@@ -1,0 +1,26 @@
+# Credentials — never commit
+.credentials.yaml
+.env
+
+# Harness state
+/sessions/
+logs/
+cache/
+/profiles/
+# The home-level patch layer and local plugins ARE versioned
+!/cordis.patch.yml
+!/plugins/
+/model-router/
+/token-ledger/
+
+node_modules/
+
+# Local machine only — never commit
+start-dsh.cmd
+.anonymous-user-id
+/storages/
+/attachments/
+_to_delete/
+.playwright-mcp/
+# Plugin output (runtime state)
+/harness-panel/
