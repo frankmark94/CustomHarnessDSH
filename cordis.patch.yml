@@ -49,10 +49,14 @@
             reasoning: { model: deepseek-v4-pro }    # $0.435 / $0.87
           # GitHub Copilot (OAuth via provider-login; models are what your
           # subscription exposes — pi-ai filters the catalog by the grant)
+          # Tiers must be models YOUR plan exposes (the grant's availableModelIds
+          # in .credentials.yaml). Free Copilot (2026-09-09): gpt-5-mini,
+          # gpt-5.6-luna, gpt-4.1, claude-haiku-4.5, mai-code-1.1-flash, …
+          # A paid plan adds the Claude Sonnet/Opus and GPT-5.x models — swap then.
           github-copilot:
-            fast:      { model: gpt-5-mini }         # list $0.25 / $2 (subscription-metered in practice)
-            standard:  { model: claude-sonnet-4.5 }  # $3 / $15
-            reasoning: { model: claude-opus-4.5 }    # $5 / $25
+            fast:      { model: gpt-5-mini }         # list $0.25 / $2, 264k ctx
+            standard:  { model: gpt-5.6-luna }       # $0.20 / $1.20, 1M ctx, reasoning
+            reasoning: { model: gpt-5.6-luna }       # strongest model on the free plan
           # OpenRouter (custom pi-ai provider, id `openrouter`)
           openrouter:
             fast:      { model: deepseek/deepseek-v4-flash }
@@ -79,6 +83,7 @@
           opencode: opencode
           deepseek-official: deepseek
           openrouter: openrouter
+          github-copilot: github-copilot
         maxTools: 40
         maxTurns: 30
         argsChars: 600
