@@ -1,0 +1,21 @@
+{
+  "name": "git-lens",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Git / GitHub adapter for the DeepSeek Harness web UI: which repository and remote the session's workspace points at, branch and ahead/behind, working tree with diffs, commit log with patches, branches, stashes and blame — as a Git tab beside Chat and Trajectory.",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
+    }
+  }
+}

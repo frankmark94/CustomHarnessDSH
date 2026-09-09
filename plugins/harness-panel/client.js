@@ -224,6 +224,30 @@ window.__ModuleLoader__.load({
           e.hint ? h('div', { className: 'hp-hint' }, e.hint) : null) : null);
     }
 
+    // ---- repo line (from the git-lens plugin's routes; hidden when absent) ----
+    function RepoSection({ cwd }) {
+      const [s, setS] = React.useState(undefined);
+      React.useEffect(() => {
+        if (!cwd) return undefined;
+        let alive = true;
+        const load = () => fetch(`/git-lens/summary?cwd=${encodeURIComponent(cwd)}`, { headers: { accept: 'application/json' } })
+          .then((r) => (r.ok ? r.json() : null)).then((d) => { if (alive) setS(d); }).catch(() => { if (alive) setS(null); });
+        load();
+        const t = setInterval(() => { if (document.visibilityState === 'visible') load(); }, 15000);
+        return () => { alive = false; clearInterval(t); };
+      }, [cwd]);
+      if (!s || !s.isRepo) return null;
+      const r = s.remote;
+      const label = r?.owner && r?.repo ? `${r.owner}/${r.repo}` : (r?.url ?? 'no remote');
+      const ago = (unix) => { const m = Math.max(0, Math.floor((Date.now() / 1000 - unix) / 60)); return m < 60 ? `${m}m ago` : m < 2880 ? `${Math.floor(m / 60)}h ago` : `${Math.floor(m / 1440)}d ago`; };
+      return h(Section, { title: 'Repo', badge: s.dirty ? h(Badge, { tone: 'warn' }, `${s.dirty} changed`) : h(Badge, { tone: 'ok' }, 'clean') },
+        h(Row, { k: r?.kind === 'github' ? 'GitHub' : 'Remote', v: r?.webUrl ? h('a', { href: r.webUrl, target: '_blank', rel: 'noreferrer', style: { color: 'inherit' } }, label) : label, mono: true }),
+        h(Row, { k: 'Branch', v: `${s.branch ?? '—'}${s.ahead ? ` ↑${s.ahead}` : ''}${s.behind ? ` ↓${s.behind}` : ''}${s.upstream ? '' : ' (no upstream)'}`, mono: true }),
+        s.head ? h(Row, { k: 'HEAD', v: `${s.head.short} · ${s.head.subject}`, mono: true }) : null,
+        s.head ? h(Row, { k: 'Committed', v: `${ago(s.head.time)} by ${s.head.author}` }) : null,
+        h('div', { className: 'hp-muted' }, 'Details in the Git tab.'));
+    }
+
     // ---- panel -----------------------------------------------------------
     // The column starts closed in the shipped layout and only opens on a tool
     // click. A dashboard wants to be visible while the agent works, so open it
@@ -258,7 +282,8 @@ window.__ModuleLoader__.load({
       }, h('span', { className: 'hp-dot', 'data-on': open ? '1' : undefined, style: { width: 7, height: 7 } }), 'Harness');
     }
 
-    function HarnessPanel({ useProjection, useSession, closeDetails, openDetails }) {
+    function HarnessPanel({ useProjection, useSession, useSessions, sessionId, closeDetails, openDetails }) {
+      const cwd = useSessions((list) => list.byId[sessionId]?.cwd);
       React.useEffect(() => {
         if (!userClosed) { try { openDetails(); setPanelOpen(true); } catch { /* layout not wired yet */ } }
       }, []);
@@ -282,6 +307,7 @@ window.__ModuleLoader__.load({
             : h(React.Fragment, null,
               h(NowSection, { p, running: active, now }),
               h(IssuesSection, { p }),
+              h(RepoSection, { cwd }),
               h(ContextSection, { pressure }),
               h(ToolsSection, { p, now }),
               h(SpendSection, { p }),

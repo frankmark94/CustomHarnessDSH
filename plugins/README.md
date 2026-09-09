@@ -98,6 +98,40 @@ Test without booting: `buildProjection(Config(cfg), prices, decisions)` gives
 the definition; replay a decompressed session log through `init`/`apply` and
 call `wire.view(state)` (see the replay snippet in the project history).
 
+## git-lens
+
+Git / GitHub adapter. Git state is not in the session log, so instead of a
+projection the host half registers a **prefix route** on the harness web
+server (`ctx.webServer.register({ kind: 'prefix', path: '/git-lens/' })`)
+and the browser half polls it.
+
+Routes (all GET, JSON; `cwd` required): `summary` (root, remote parsed into
+host/owner/repo/webUrl, branch, upstream, ahead/behind, HEAD, dirty counts,
+stashes), `status` (porcelain v2 entries + numstat), `diff?path&staged`,
+`log?n&skip`, `show?sha` (message, per-file stats, capped patch),
+`branches`, `blame?path` (line-porcelain, capped). `POST fetch` runs
+`git fetch --prune` and is the only network call. Guards, in order: the
+connection service's `requestRejection(req)` (Host/Origin fence + the signed
+browser-session cookie every UI request carries), then `cwd` must be an
+existing directory inside a registered workspace (`workspaceRegistry.list()`;
+`restrictToWorkspaces: false` lifts that). Only `git` is executed, with a
+fixed argv and `GIT_TERMINAL_PROMPT=0`.
+
+Browser half: a **Git** tab beside Chat / Trajectory (`conversation.view`,
+id `git-lens`). Header: GitHub repo link, branch → upstream, ↑ahead ↓behind,
+dirty/clean, HEAD; Refresh / Fetch / Open on GitHub. Left: Changes (staged /
+unstaged / untracked / conflicts with +/−), Commits (30 at a time, refs
+decorated, Load older), Branches (local, remote, stashes). Right: file diff
+with a Blame toggle, or commit message + file stats + patch. Polling: summary
+and status every 5 s while the tab is visible, plus on window focus. The
+Harness panel's **Repo** section reads `summary` every 15 s and hides itself
+when the routes are absent.
+
+Parsers are exported for tests: `parseRemote`, `parseStatus`, `parseNumstat`,
+`parseBlame`. Replay: build a fake ctx with `webServer.register` capturing
+the handler and call it with `{ url, method, headers, socket }` / a stub
+`res`.
+
 ## ui-fixes
 
 Client-only. `client.js` injects a scoped stylesheet that overrides

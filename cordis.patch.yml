@@ -79,6 +79,22 @@
         resultChars: 1500
         ledgerDir: !!js dshHomePath('token-ledger')
 
+    # ── Git lens ─────────────────────────────────────────────────────────────
+    # Git / GitHub adapter: read-only loopback routes under /git-lens/ run git
+    # for the session's workspace (registered workspaces only, behind the same
+    # browser-session cookie as the UI). The browser half adds a "Git" tab
+    # beside Chat / Trajectory: remote + GitHub repo, branch, ahead/behind,
+    # working tree with diffs, commits with patches, branches, stashes, blame.
+    # The Harness panel shows a one-line repo summary from the same routes.
+    - id: git-lens
+      name: ./plugins/git-lens/index.js
+      config:
+        prefix: /git-lens/
+        timeoutMs: 15000
+        maxPatchBytes: 300000
+        maxBlameLines: 3000
+        restrictToWorkspaces: true
+
     # ── UI fixes ─────────────────────────────────────────────────────────────
     # Client-only CSS overrides for third-party UI plugins whose theme tokens
     # drifted from this harness build (TokenLedger's translucent popover).

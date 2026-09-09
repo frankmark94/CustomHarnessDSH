@@ -20,7 +20,10 @@ llm-pi-ai:
 ui-onboarding:
   welcomeNoticeVersion: 2026-08-13.1
 agent-default-model:
-  provider: opencode-go        # your $10/month plan. `opencode` (Zen) needs prepaid credits.
-  model: qwen3.8-flash         # the router re-picks the tier per call anyway
+  provider: opencode-go # your $10/month plan. `opencode` (Zen) needs prepaid credits.
+  model: minimax-m3 # the router re-picks the tier per call anyway
+  reasoningEffort: medium
 ui-theme:
   preference: dark
+agent-presets:
+  default: ptc
