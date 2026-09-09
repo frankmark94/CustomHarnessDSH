@@ -24,3 +24,5 @@ _to_delete/
 .playwright-mcp/
 # Plugin output (runtime state)
 /harness-panel/
+# TokenLedger (third-party plugin, installed into profiles/web) database
+/tokenledger.sqlite*

@@ -15,6 +15,7 @@ in `plugins/` that are the only code we own.
 | `plugins/harness-panel/{index,client,package}.js(on)` | yes | Right-hand live dashboard in the web UI. Host half = `harnessPanel` session projection; `client.js` is browser code in the harness's client-module form (hot-reloaded); `package.json` declares `dsh.client` so the harness serves it |
 | `plugins/README.md` | yes | Design notes for both plugins — read before changing them |
 | `cordis.patch.yml` (top level) | yes | Home-level patch layer: mounts + configures the plugins for every profile |
+| `profiles/web/node_modules/dsh-tokenledger/` | no (third-party) | [zh667/TokenLedger](https://github.com/zh667/TokenLedger), installed with `dsh plugin --profile web add -w github:zh667/TokenLedger` (registered in `profiles/web/package.json` → `dsh.profile.bundles`; not in git). Sidebar "Token Ledger" dashboard + `/tokenledger`; data in `tokenledger.sqlite` (ignored). Overlaps our `token-ledger` (which does expected-vs-actual); theirs does relay-site attribution, balances, exports |
 | `settings.yaml` | yes | Provider profiles (`llm-pi-ai`), default model, theme; hot-reloaded |
 | `start-dsh.cmd` | yes | Launcher. **Contains the OpenRouter API key** — never commit or paste it |
 | `README-SETUP.md` | yes | Human setup notes |

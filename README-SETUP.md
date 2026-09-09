@@ -30,6 +30,22 @@ Requires **Node.js LTS** (https://nodejs.org). Nothing else to install.
 `start-dsh.cmd` points `DSH_HOME` at this folder, which is why the harness reads
 the `settings.yaml` here rather than the default `%USERPROFILE%\.dsh`.
 
+## Third-party plugin: TokenLedger (usage dashboard)
+
+[zh667/TokenLedger](https://github.com/zh667/TokenLedger) is installed into the
+`web` profile (not into this folder's `plugins/`), so it is **not** in git.
+On a fresh clone, after `npm install`, run once:
+
+```
+node node_modules/@deepseek-ai/dsh/lib/bin.js plugin --profile web add -w "github:zh667/TokenLedger"
+```
+
+(`-w` is needed because pnpm treats the profile as a workspace root.) Restart
+`start-dsh.cmd`; a **Token Ledger** button appears at the bottom of the sidebar
+and `/tokenledger` works in the chat (`/tokenledger diagnostics` shows route
+attribution). It keeps its data in `tokenledger.sqlite` here (ignored by git).
+Update / remove with `plugin --profile web update dsh-tokenledger` / `remove dsh-tokenledger`.
+
 ## Local plugins (model router + token ledger)
 
 Two plugins in **`plugins/`** are mounted for every profile by the home-level
