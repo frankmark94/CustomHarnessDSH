@@ -79,6 +79,39 @@
         resultChars: 1500
         ledgerDir: !!js dshHomePath('token-ledger')
 
+    # ── Session search (vendored third-party) ────────────────────────────────
+    # Tieboyh/dsh-session-search, vendored under ./vendor (see its NOTICE).
+    # Adds two model-facing tools: agent_session_search / agent_session_read —
+    # a read-only, index-free literal search over past dsh, Codex, Claude Code
+    # and OpenCode conversations on this machine. `roots.dsh` must point at
+    # THIS home's sessions (the default is ~/.dsh/sessions). No ripgrep here,
+    # so it parses every candidate file (fine at this corpus size).
+    - id: dsh-session-search
+      name: ./vendor/dsh-session-search/lib/index.js
+      config:
+        sources: { dsh: true, codex: true, claude: true, pi: false, opencode: true }
+        roots:
+          dsh: !!js dshHomePath('sessions')
+        maxResults: 10
+        readWindow: 10
+
+    # ── Claude bridge ────────────────────────────────────────────────────────
+    # Injects Claude Code's memory for the SESSION'S workspace
+    # (~/.claude/projects/<key>/memory/*.md), ~/.claude/CLAUDE.md and a skills
+    # catalog into the system prompt. Adapted from YYTbit/dsh-plugin-claude-bridge
+    # (MIT). NOTE: everything it reads is sent to the model provider.
+    - id: claude-bridge
+      name: ./plugins/claude-bridge/index.js
+      config:
+        claudeHome: ~/.claude
+        enableMemory: true
+        maxMemoryBytes: 8192
+        enableGlobalInstructions: true
+        enableSkills: true
+        maxSkills: 30
+        extraSkillDirs: ['~/.agents/skills']
+        cacheMs: 3000
+
     # ── Git lens ─────────────────────────────────────────────────────────────
     # Git / GitHub adapter: read-only loopback routes under /git-lens/ run git
     # for the session's workspace (registered workspaces only, behind the same

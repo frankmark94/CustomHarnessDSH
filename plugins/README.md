@@ -98,6 +98,48 @@ Test without booting: `buildProjection(Config(cfg), prices, decisions)` gives
 the definition; replay a decompressed session log through `init`/`apply` and
 call `wire.view(state)` (see the replay snippet in the project history).
 
+## vendor/dsh-session-search (third-party, vendored)
+
+Not ours. [Tieboyh/dsh-session-search](https://github.com/Tieboyh/dsh-session-search)
+(BSD-3-Clause) ships a committed `lib/` build and is meant to be mounted by
+path, so it lives in `../vendor/dsh-session-search` and the top-level patch
+mounts `./vendor/dsh-session-search/lib/index.js`. It registers two tools:
+`agent_session_search` (case-insensitive literal scan over user/assistant
+messages of past dsh, Codex, Claude Code and OpenCode sessions, grouped by
+session with a snippet and a message window) and `agent_session_read`. Read-only,
+no index. `roots.dsh` is overridden to this home's `sessions/`; `pi` is off
+(not installed here). Its `@deepseek-ai/*` peer imports resolve from this
+folder's `node_modules`. To update: copy the new `lib/` + `package.json`
+over, bump `NOTICE`, restart.
+
+## claude-bridge
+
+Brings Claude Code's files into the system prompt without copying them.
+Adapted from [YYTbit/dsh-plugin-claude-bridge](https://github.com/YYTbit/dsh-plugin-claude-bridge)
+(MIT); rewritten because upstream keyed memory off the harness process cwd
+(always `DSH_HOME`) with the wrong drive-letter case, and used async text
+providers that this build's assembler calls synchronously.
+
+- **Memory** (`claude-bridge:memory`, dynamic context, order 130): for the
+  session's workspace, `~/.claude/projects/<key>/memory/*.md` where `<key>`
+  is the path with `:` dropped and separators → `-`, matched case-insensitively
+  (`c--Users-…` and `C--Users-…` both occur). `MEMORY.md` (the index) is
+  skipped. Sorted feedback > project > reference > user, capped by
+  `maxMemoryBytes` (whole entries).
+- **Global instructions** (`claude-bridge:global`, section, order 5):
+  `~/.claude/CLAUDE.md` if present. The workspace's own AGENTS.md / CLAUDE.md
+  is already injected by the harness's `agent-instructions` plugin.
+- **Skills** (`claude-bridge:skills`, dynamic context, order 131): name,
+  description, argument hint and path of `~/.claude/skills/<name>/SKILL.md`
+  and `extraSkillDirs`.
+
+Files are re-read at most every `cacheMs` per session, so new memories take
+effect on the next prompt. **Privacy:** all of it goes to the model provider
+with every request; set `enableMemory: false` for workspaces whose memories
+must stay local. Helpers exported for tests: `encodeProjectPath`,
+`findProjectDir`, `parseFrontmatter`, `loadMemories`, `renderMemories`,
+`loadSkills`, `renderSkillCatalog`.
+
 ## git-lens
 
 Git / GitHub adapter. Git state is not in the session log, so instead of a

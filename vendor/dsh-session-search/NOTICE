@@ -1,0 +1,5 @@
+Vendored from https://github.com/Tieboyh/dsh-session-search (published as @dsh-external/dsh-session-search)
+commit 82990a0 (2026-08-13), license BSD-3-Clause per package.json.
+Only lib/ (the committed build), package.json and READMEs are vendored; src/ and tests/ are upstream.
+Mounted from the top-level cordis.patch.yml as ./vendor/dsh-session-search/lib/index.js;
+its @deepseek-ai/* peer imports resolve from this folder's node_modules.
