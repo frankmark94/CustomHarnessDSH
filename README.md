@@ -122,6 +122,8 @@ OpenAI-compatible endpoint. When enabled, a **mic button** appears in the compos
 panel shows a live waveform with the transcript as it is recognised, while the words stream straight
 into the message box. Audio for server engines goes through the harness with a host-resolved key.
 
+<p align="center"><img src="docs/images/dictation.png" alt="Dictation: the Listening panel with a live waveform and transcript above the composer, words streaming into the message box" width="900"></p>
+
 ### claude-bridge
 Injects Claude Code's memory **for the session's workspace** (`~/.claude/projects/<key>/memory`),
 `~/.claude/CLAUDE.md` and a skills catalog into the system prompt. Adapted from

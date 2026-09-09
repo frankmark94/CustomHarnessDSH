@@ -26,8 +26,8 @@ llm-pi-ai:
 ui-onboarding:
   welcomeNoticeVersion: 2026-08-13.1
 agent-default-model:
-  provider: openai-codex # your $10/month plan. `opencode` (Zen) needs prepaid credits.
-  model: gpt-5.6-sol # the router re-picks the tier per call anyway
+  provider: opencode-go # your $10/month plan. `opencode` (Zen) needs prepaid credits.
+  model: qwen3.8-max # the router re-picks the tier per call anyway
 ui-theme:
   preference: dark
 agent-presets:

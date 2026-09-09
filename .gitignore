@@ -30,3 +30,5 @@ _to_delete/
 /*.png
 /smart-router/
 /dictation/
+# runtime state the third-party dsh-worktree plugin writes under plugins/
+/plugins/dsh-worktree/
