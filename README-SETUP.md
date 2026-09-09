@@ -30,6 +30,33 @@ Requires **Node.js LTS** (https://nodejs.org). Nothing else to install.
 `start-dsh.cmd` points `DSH_HOME` at this folder, which is why the harness reads
 the `settings.yaml` here rather than the default `%USERPROFILE%\.dsh`.
 
+## Third-party plugins installed into the web profile (not in git)
+
+These live in `profiles/web/node_modules` and are registered in
+`profiles/web/package.json` → `dsh.profile.bundles`, so a fresh clone must
+re-add them (run from this folder; `-w` because pnpm sees the profile as a
+workspace root; `--config.auto-install-peers=false` because the harness
+packages they peer on are already here):
+
+```
+set DSH=node node_modules/@deepseek-ai/dsh/lib/bin.js
+%DSH% plugin --profile web add -w "github:zh667/TokenLedger"
+%DSH% plugin --profile web add -w dsh-context@latest
+%DSH% plugin --profile web add -w @nanmicoder/dsh-agent-teams@0.1.16-rc.1
+%DSH% plugin --profile web add -w @paradoxsch/dsh-worktree@alpha
+%DSH% plugin --profile web add -w dsh-better-sidebar@latest --config.auto-install-peers=false
+```
+
+| Plugin | What you get |
+|---|---|
+| [dsh-context](https://github.com/bowenliang123/dsh-context) | Context-window composition dashboard: what the model is carrying (system prompt, tool schemas, skills, conversation, injections), token estimates vs provider-reported usage, compactions, model changes |
+| [dsh-agent-teams](https://github.com/NanmiCoder/dsh-agent-teams) | Captain + member agents with dependency-aware tasks, persistent state (`.agent-teams/` in the workspace), messaging and a live UI |
+| [dsh-worktree](https://github.com/paradoxSCH/dsh-worktree) | Durable Git worktrees for agents (`.dsh-worktrees/` in the workspace) with the create → work → review → validate → apply → finish lifecycle; adds the `subagent_worktree` tool and `/worktree` commands |
+| [DSH-better-sidebar](https://github.com/omdsh-dev/DSH-better-sidebar) | Right sidebar with file viewer/editor, terminal (needs `node-pty`), side chat, Git and subagent tabs; other plugins can register tabs |
+| [dsh-cost-governor](https://github.com/yushuosun/dsh-cost-governor) | Vendored under `vendor/` (not on npm): budget per period with warn/hard ratios and a `costUsage` projection; `notify-only` until wired to the router |
+
+Restart `start-dsh.cmd` after adding any of them.
+
 ## Third-party plugin: TokenLedger (usage dashboard)
 
 [zh667/TokenLedger](https://github.com/zh667/TokenLedger) is installed into the

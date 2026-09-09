@@ -186,6 +186,20 @@ flow for Copilot; but nothing in this web build ever calls
   profile for it; pi-ai filters the model catalog to what the subscription
   exposes.
 
+## vendor/dsh-cost-governor (third-party, vendored)
+
+Not ours. [yushuosun/dsh-cost-governor](https://github.com/yushuosun/dsh-cost-governor)
+(MIT) is not on npm and ships no build, so `vendor/dsh-cost-governor/lib` is
+our `tsc` build of its `src/` (13 upstream tests pass). Mounted by path from
+the top-level patch with a monthly budget (`budgetUsd`, `warnRatio`,
+`hardRatio`, `hardAction`). It registers the `costUsage` session projection
+and a `usageCost` service and watches `llm/stream`; `steer-to-cheaper-model`
+only affects hand-built calls (loop requests are frozen), so for real steering
+the plan is to have model-router read `usageCost` and drop a tier when the
+budget is hot. Its TSX dashboard depends on `@deepseek-ai/dsh-client-runtime`,
+which this build lacks, so only the host half runs; the Harness panel's Spend
+section covers the display.
+
 ## vendor/dsh-session-search (third-party, vendored)
 
 Not ours. [Tieboyh/dsh-session-search](https://github.com/Tieboyh/dsh-session-search)

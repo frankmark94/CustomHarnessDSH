@@ -1,0 +1,4 @@
+Vendored from https://github.com/yushuosun/dsh-cost-governor (not published to npm)
+commit 941b32e (2026-08-22), MIT (see LICENSE). lib/ is our `tsc` build of src/ (node_modules/.bin/tsc, TypeScript from its devDependencies);
+src/, client/ (TSX dashboard needing @deepseek-ai/dsh-client-runtime, absent in this harness build) and test/ stay upstream.
+Mounted from the top-level cordis.patch.yml as ./vendor/dsh-cost-governor/lib/index.js; its @deepseek-ai/* peers resolve from this folder's node_modules; zod from node_modules/zod.

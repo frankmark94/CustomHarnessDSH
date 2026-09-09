@@ -129,6 +129,29 @@ read-only literal search over past dsh, Codex, Claude Code and OpenCode conversa
 Scoped CSS overrides for third-party UI whose theme tokens drifted from this harness build
 (TokenLedger's popover painted itself with the scrim colour and came out translucent).
 
+### Third-party plugins installed alongside
+
+<p>
+  <a href="https://github.com/bowenliang123/dsh-context"><img alt="dsh-context" src="https://img.shields.io/badge/dsh--context-context%20window%20dashboard-6e40c9?style=flat-square"></a>
+  <a href="https://github.com/NanmiCoder/dsh-agent-teams"><img alt="dsh-agent-teams" src="https://img.shields.io/badge/dsh--agent--teams-captain%20%2B%20members-6e40c9?style=flat-square"></a>
+  <a href="https://github.com/paradoxSCH/dsh-worktree"><img alt="dsh-worktree" src="https://img.shields.io/badge/dsh--worktree-durable%20worktrees-6e40c9?style=flat-square"></a>
+  <a href="https://github.com/omdsh-dev/DSH-better-sidebar"><img alt="DSH-better-sidebar" src="https://img.shields.io/badge/better--sidebar-files%20%7C%20terminal%20%7C%20git-6e40c9?style=flat-square"></a>
+  <a href="https://github.com/yushuosun/dsh-cost-governor"><img alt="dsh-cost-governor" src="https://img.shields.io/badge/cost--governor-budget%20%E2%86%92%20policy-6e40c9?style=flat-square"></a>
+  <a href="https://github.com/zh667/TokenLedger"><img alt="TokenLedger" src="https://img.shields.io/badge/TokenLedger-usage%20by%20site-6e40c9?style=flat-square"></a>
+</p>
+
+| Plugin | What it adds | How it's installed |
+|---|---|---|
+| **dsh-context** | What the model is actually carrying in its context window: composition by source, estimates vs provider-reported usage, compactions, injections, model changes | web profile (npm) |
+| **dsh-agent-teams** | A captain agent delegating to member agents with dependency-aware tasks, persistent state, messaging and a live UI | web profile (npm) |
+| **dsh-worktree** | Durable Git worktrees per task (`.dsh-worktrees/` in the workspace) with a create → work → review → validate → apply → finish lifecycle, plus a `subagent_worktree` tool | web profile (npm) |
+| **DSH-better-sidebar** | Right sidebar with file viewer/editor, terminal, side chat, Git and subagent tabs that other plugins can extend | web profile (npm) |
+| **dsh-cost-governor** | Budget per period with warn and hard ratios feeding a policy on every model call; the bridge between the ledger and the router | vendored build under `vendor/` |
+| **TokenLedger** | Usage by day, month, project, model and relay site, balances, exports | web profile (git) |
+
+The exact install commands are in [README-SETUP.md](README-SETUP.md). They register in the web
+profile, which is outside git, so a fresh clone re-runs them once.
+
 ### TokenLedger (third-party, installed into the web profile)
 [zh667/TokenLedger](https://github.com/zh667/TokenLedger): usage by day, month, project, model and
 relay site, with balances and exports. Installed with the harness's plugin command; not in git.

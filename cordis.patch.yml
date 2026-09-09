@@ -111,6 +111,24 @@
         maxResults: 10
         readWindow: 10
 
+    # ── Cost governor (vendored third-party) ─────────────────────────────────
+    # yushuosun/dsh-cost-governor, built + vendored under ./vendor (NOTICE).
+    # Accounting → pricing → budget → policy: registers the `costUsage`
+    # projection and a `usageCost` service, warns at warnRatio of the period
+    # budget and applies hardAction at hardRatio. Kept on notify-only until it
+    # is wired to the model-router's tiers (steer-to-cheaper-model).
+    - id: cost-governor
+      name: ./vendor/dsh-cost-governor/lib/index.js
+      config:
+        currency: USD
+        budget:
+          period: monthly
+          budgetUsd: 20
+          warnRatio: 0.8
+          hardRatio: 1.0
+          hardAction: notify-only   # notify-only | block-new-requests | steer-to-cheaper-model
+        notifyWebhook: ''
+
     # ── Claude bridge ────────────────────────────────────────────────────────
     # Injects Claude Code's memory for the SESSION'S workspace
     # (~/.claude/projects/<key>/memory/*.md), ~/.claude/CLAUDE.md and a skills
