@@ -1,0 +1,20 @@
+{
+  "name": "ui-fixes",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Small CSS overrides for third-party DeepSeek Harness UI plugins whose theme tokens drifted from this harness version (currently: TokenLedger's translucent popover).",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-renderer"
+      ]
+    }
+  }
+}

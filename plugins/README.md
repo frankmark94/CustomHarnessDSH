@@ -98,6 +98,16 @@ Test without booting: `buildProjection(Config(cfg), prices, decisions)` gives
 the definition; replay a decompressed session log through `init`/`apply` and
 call `wire.view(state)` (see the replay snippet in the project history).
 
+## ui-fixes
+
+Client-only. `client.js` injects a scoped stylesheet that overrides
+third-party UI plugins whose theme tokens don't match this harness build.
+Currently: TokenLedger's `.tkl_panel` / `.tkl_dlg` / `.tkl_tip` use
+`--dsw-alias-bg-overlay` at 90%, which in 0.1.2-rc.1 is the mid-grey scrim
+(`#61666b`), so the popover was translucent; the override repaints them with
+the opaque `--dsw-alias-bg-layer-1/2` surfaces. Edits hot-reload. Keep every
+rule scoped to the target plugin's classes.
+
 ## token-ledger
 
 Wraps every streaming model call on the `llm/stream` waterfall. Before the

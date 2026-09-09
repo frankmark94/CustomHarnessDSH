@@ -79,6 +79,13 @@
         resultChars: 1500
         ledgerDir: !!js dshHomePath('token-ledger')
 
+    # ── UI fixes ─────────────────────────────────────────────────────────────
+    # Client-only CSS overrides for third-party UI plugins whose theme tokens
+    # drifted from this harness build (TokenLedger's translucent popover).
+    - id: ui-fixes
+      name: ./plugins/ui-fixes/index.js
+      config: {}
+
     # ── Token ledger ─────────────────────────────────────────────────────────
     # Prices every request before it is sent (system + tools + messages, plus a
     # per-model expected-output allowance), then reconciles with the provider's
