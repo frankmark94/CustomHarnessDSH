@@ -35,6 +35,24 @@
 
 ---
 
+## Architecture
+
+<p align="center">
+  <img src="docs/images/architecture.svg" alt="Architecture: browser client modules on top, session projections and cookie-gated routes in the middle, the host composition with the request path through model-router, token-ledger and cost-governor into the pi-ai adapter and providers, the system prompt and tools, and the external systems below" width="1000">
+</p>
+
+Reading it top to bottom: every plugin's browser half registers into a UI slot and gets live data
+either through **session projections** (pure folds over the session log, pushed on change) or by
+polling **cookie-gated routes** the plugin's host half registers. On the host, one model call flows
+from the agent loop through the **model-router** (which picks a tier, nudged by the Smart Router
+toggle), past the **token-ledger** and **cost-governor** on the stream, into the harness's pi-ai
+adapter and out to whichever provider the route names, authenticated by a stored key or, for
+Copilot, an OAuth grant obtained through **provider-login**. Everything the model sees is assembled
+by the system prompt, where **claude-bridge** adds Claude Code memory, and everything it can call
+lives in the tools registry, where the vendored **session-search**, **worktree** and
+**agent-teams** add theirs. `git-lens` and `dictation` reach outside the process: one runs git for
+the workspace, the other forwards audio to a speech-to-text engine with a host-resolved key.
+
 ## What this is
 
 This repo *is* `DSH_HOME` for a DeepSeek Harness install. The harness itself is an npm dependency
