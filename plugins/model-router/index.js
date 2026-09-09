@@ -16,6 +16,13 @@
  * `<logDir>/decisions.jsonl` and to the harness log, and `/router` shows the
  * latest decision for the current session.
  *
+ * "Smart mode" (the exported `smartBridge.smartEnabled`, flipped by the
+ * sibling `smart-router` plugin's chatbox button) tightens the tier
+ * thresholds: the MAIN agent escalates to `reasoning` earlier and on the first
+ * errored tool, while SUBAGENTS (sessions whose `meta.origin === 'subagent'`)
+ * keep their reasoning budget and bias toward `fast`/`standard`. That is the
+ * "most capable per task, optimizing cost" shape the button advertises.
+ *
  * @module model-router
  */
 import { appendFileSync, mkdirSync } from 'node:fs';
@@ -24,6 +31,19 @@ import z from '@deepseek-ai/schemastery';
 
 export const name = 'model-router';
 export const inject = ['llm'];
+
+/**
+ * "Smart mode" switch, shared in-process. The router OWNS this object; the
+ * optional sibling `smart-router` plugin imports it and flips `smartEnabled`
+ * from its chatbox button / `/smartrouter` command. The dependency points
+ * from the add-on to the core (never the other way round), so the router
+ * loads and runs identically whether or not smart-router is mounted.
+ */
+export const smartBridge = {
+  smartEnabled: false,
+  /** A subagent session is marked by the harness with `meta.origin === 'subagent'`. */
+  isSubagent: (session) => session?.meta?.origin === 'subagent',
+};
 
 /**
  * Latest routing decision per session id, shared in-process with sibling
@@ -116,11 +136,16 @@ function turnStats(session, turn) {
 
 /**
  * Score a prompt. Returns the tier plus the signals that produced it so the
- * decision can be explained.
+ * decision can be explained. `smart` and `isSubagent` only widen the signal
+ * set — the threshold for "reasoning" vs "standard" vs "fast" is the separate
+ * `pickTier` step, so the score is comparable across modes.
  * @param {string} prompt
  * @param {object} h - heuristics config
+ * @param {object} [ctx]
+ * @param {boolean} [ctx.smart] - smart mode on
+ * @param {boolean} [ctx.isSubagent] - the call is for a subagent session
  */
-export function classifyPrompt(prompt, h) {
+export function classifyPrompt(prompt, h, { smart = false, isSubagent = false } = {}) {
   const text = prompt.trim();
   const lower = text.toLowerCase();
   const words = text.length === 0 ? 0 : text.split(/\s+/).length;
@@ -141,10 +166,78 @@ export function classifyPrompt(prompt, h) {
   const fHits = h.fastKeywords.filter((k) => lower === k || lower.startsWith(k + ' ') || lower.startsWith(k + ',') || lower.startsWith(k + '!'));
   if (fHits.length > 0) { fast += 1; reasons.push(`simple opener: "${fHits[0]}"`); }
 
+  // Smart mode: subagents get an extra cost-aware signal — a long reasoning-
+  // keyword match inside a subagent is more likely "narrow lookup" than
+  // "design", so we dampen it. The main agent gets a small bump for code
+  // fences (they tend to matter more there). These are score modifiers; the
+  // final tier mapping is in `pickTier`.
+  if (smart) {
+    if (isSubagent) {
+      if (rHits.length > 0 && words < h.longPromptWords) { reasoning = Math.max(0, reasoning - 1); reasons.push('smart mode: subagent keyword hit dampened (likely a narrow lookup)'); }
+      if (words > 0 && words <= h.shortPromptWords) { fast += 1; reasons.push('smart mode: subagent short prompt pushed toward fast'); }
+    } else if (codeFence && questions <= 1) { reasoning += 1; reasons.push('smart mode: main-agent code fence emphasised'); }
+  }
+
   let tier = 'standard';
   if (reasoning >= 3) tier = 'reasoning';
   else if (fast >= 2 && reasoning === 0) tier = 'fast';
-  return { tier, reasons, signals: { words, codeFence, questions, reasoningScore: reasoning, fastScore: fast } };
+  return { tier, reasons, signals: { words, codeFence, questions, reasoningScore: reasoning, fastScore: fast, smart, isSubagent } };
+}
+
+/**
+ * Map a prompt classification to a tier under the given mode. Kept separate
+ * from `classifyPrompt` so the scoring is comparable across modes and tests
+ * can pin one without the other.
+ *
+ *   auto, main agent:    reasoning>=3 → reasoning, fast>=2 (no reasoning) → fast
+ *   auto, subagent:      same as main agent — no mode-specific bias
+ *   smart, main agent:   reasoning>=2 → reasoning (capability-first), fast>=2 (no reasoning) → fast
+ *   smart, subagent:     reasoning>=2 (after damping) AND words>longPromptWords → reasoning;
+ *                        otherwise fast>=2 (no reasoning) → fast;
+ *                        else standard (cost-first for subagents)
+ *
+ * The defaults (`config.defaultTier`) still apply when neither threshold fires.
+ */
+export function pickTier(classification, h, { smart = false, isSubagent = false, defaultTier = 'standard' } = {}) {
+  const { tier: baseTier, signals: s } = classification;
+  const reasoning = s?.reasoningScore ?? 0;
+  const fast = s?.fastScore ?? 0;
+  if (!smart) {
+    if (isSubagent) reasonsAdd(classification, 'auto mode: subagent routed by the standard thresholds');
+    return baseTier === 'reasoning' || baseTier === 'fast' ? baseTier : defaultTier;
+  }
+  if (isSubagent) {
+    // "Genuinely hard" for a subagent: post-damping reasoning score is at
+    // least 2 AND the prompt is longer than `longPromptWords`. The damping in
+    // `classifyPrompt` already knocks -1 off for keyword hits on short
+    // prompts, so reaching R>=2 here means the prompt is keyword-rich AND
+    // long. Short keyword hits stay at standard (and short non-keyword
+    // prompts get pushed toward fast by the score bump).
+    if (reasoning >= 2 && s.words > h.longPromptWords) {
+      reasonsAdd(classification, `smart: subagent genuinely hard (score ${reasoning}, ${s.words} words) → reasoning`);
+      return 'reasoning';
+    }
+    if (fast >= 2 && reasoning === 0) {
+      reasonsAdd(classification, 'smart: subagent on a small prompt → fast');
+      return 'fast';
+    }
+    reasonsAdd(classification, 'smart: subagent stays on standard (cost-first)');
+    return 'standard';
+  }
+  // smart, main agent
+  if (reasoning >= 2) {
+    reasonsAdd(classification, `smart: main-agent reasoning threshold lowered to 2 (score ${reasoning})`);
+    return 'reasoning';
+  }
+  if (fast >= 2 && reasoning === 0) {
+    reasonsAdd(classification, 'smart: main-agent short prompt → fast');
+    return 'fast';
+  }
+  return baseTier === 'reasoning' ? 'reasoning' : defaultTier;
+}
+
+function reasonsAdd(classification, reason) {
+  if (Array.isArray(classification.reasons)) classification.reasons.push(reason);
 }
 
 // ---------------------------------------------------------------------------
@@ -254,6 +347,8 @@ export function apply(ctx, config = {}) {
     const reasons = [];
     let tier;
     let signals = {};
+    const isSubagent = smartBridge.isSubagent(session);
+    const smart = smartBridge.smartEnabled === true;
 
     const pin = state.pins.get(agent.id);
     const sticky = state.sticky.get(agent.id);
@@ -263,12 +358,19 @@ export function apply(ctx, config = {}) {
       tier = sticky.tier; reasons.push(`sticky within turn (chosen at step 1)`);
     } else {
       const prompt = latestHumanPrompt(session);
-      const c = classifyPrompt(prompt, config.heuristics);
-      tier = c.tier; signals = c.signals; reasons.push(...c.reasons);
-      if (c.reasons.length === 0) { tier = config.defaultTier; reasons.push('no strong signal → default tier'); }
+      const c = classifyPrompt(prompt, config.heuristics, { smart, isSubagent });
+      tier = pickTier(c, config.heuristics, { smart, isSubagent, defaultTier: config.defaultTier });
+      signals = c.signals; reasons.push(...c.reasons);
+      if (smart) reasons.push('smart mode: orchestration ON — main agent capability-first, subagents cost-first');
     }
-    if (pin === undefined && config.escalateOnToolErrors > 0 && stats.toolErrors >= config.escalateOnToolErrors && tier !== 'reasoning') {
-      tier = 'reasoning'; reasons.push(`${stats.toolErrors} tool errors this turn → escalate`);
+    // Smart mode: escalate after the FIRST errored tool (capability-first for
+    // the main agent). The user's `escalateOnToolErrors` is the floor.
+    const escalateAt = smart ? Math.min(1, config.escalateOnToolErrors) : config.escalateOnToolErrors;
+    if (pin === undefined && escalateAt > 0 && stats.toolErrors >= escalateAt && tier !== 'reasoning') {
+      tier = 'reasoning';
+      reasons.push(smart
+        ? `${stats.toolErrors} tool error${stats.toolErrors === 1 ? '' : 's'} this turn → smart-mode escalation`
+        : `${stats.toolErrors} tool errors this turn → escalate`);
     }
 
     let target = resolveTier(base, profile, tier);
@@ -295,6 +397,7 @@ export function apply(ctx, config = {}) {
     record({
       time: new Date().toISOString(), sessionId: String(session.id), turn, step, tier, changed,
       from: base, to: target, reasons, signals, turnStats: stats,
+      smart, isSubagent,
     });
     return target;
   }, true /* prepend: stay outermost — see comment above */);
@@ -338,13 +441,14 @@ export function apply(ctx, config = {}) {
             const sid = String(agent.session.id);
             const last = state.last.get(sid);
             const pin = state.pins.get(agent.id);
-            const lines = [`model-router: mode=${state.mode}${pin ? `, pinned=${pin}` : ''}, sticky=${config.stickyWithinTurn}, auxiliary=${config.auxiliaryTier}`];
+            const smart = smartBridge.smartEnabled === true;
+            const lines = [`model-router: mode=${state.mode}${pin ? `, pinned=${pin}` : ''}, smart=${smart ? 'on' : 'off'}, sticky=${config.stickyWithinTurn}, auxiliary=${config.auxiliaryTier}`];
             const header = agent.session.requestHeader();
             const provider = header?.config.provider;
             const profile = provider ? config.profiles[provider] : undefined;
             if (profile) lines.push(`profile for ${provider}: ` + TIERS.map((t) => `${t}=${profile[t]?.model ?? '-'}`).join(', '));
             else lines.push(`no profile for provider "${provider ?? 'unknown'}" — requests are not rerouted`);
-            if (last) lines.push(`last decision (turn ${last.turn}, step ${last.step}): ${last.tier} → ${fmtRoute(last.to)} — ${last.reasons.join('; ')}`);
+            if (last) lines.push(`last decision (turn ${last.turn}, step ${last.step}): ${last.tier} → ${fmtRoute(last.to)}${smart && last.isSubagent ? ' (subagent)' : ''} — ${last.reasons.join('; ')}`);
             else lines.push('no decisions yet in this session');
             lines.push(`decision log: ${decisionsFile}`);
             return { kind: 'success', text: lines.join('\n') };

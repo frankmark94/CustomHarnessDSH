@@ -1,0 +1,21 @@
+{
+  "name": "provider-login",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "OAuth / device-code sign-in surface for model providers in the DeepSeek Harness web UI (GitHub Copilot first): starts the harness's registered authorization flows, shows the code to copy and the page to approve it on, and stores the grant.",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-settings-models"
+      ]
+    }
+  }
+}

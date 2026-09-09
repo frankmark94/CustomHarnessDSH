@@ -17,11 +17,16 @@ llm-pi-ai:
     opencode-go:
       apiKeyEnv: OPENCODE_API_KEY
       headers: { x-opencode-session: dsh-frank-home }
+    # GitHub Copilot — OAuth, not an API key. No apiKeyEnv on purpose: the route
+    # authenticates from the OAuth grant stored after "Sign in with GitHub" on
+    # the Models page (device-code flow: copy the code, approve on
+    # github.com/login/device). pi-ai refreshes the Copilot token itself.
+    github-copilot: {}
 ui-onboarding:
   welcomeNoticeVersion: 2026-08-13.1
 agent-default-model:
   provider: opencode-go # your $10/month plan. `opencode` (Zen) needs prepaid credits.
-  model: deepseek-v4-flash # the router re-picks the tier per call anyway
+  model: qwen3.8-flash # the router re-picks the tier per call anyway
 ui-theme:
   preference: dark
 agent-presets:

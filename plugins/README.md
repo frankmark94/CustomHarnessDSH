@@ -11,6 +11,8 @@ file apply live; edits to the plugin code need a restart of `start-dsh.cmd`.
 | `model-router/` | Chooses a **fast / standard / reasoning** model for each call, per provider | `/router` |
 | `token-ledger/` | Adds up **expected** tokens before each call and reconciles with **actual** usage; tallies per session, per model, per day, in tokens and USD | `/tokens` |
 | `harness-panel/` | Right-hand live dashboard in the web UI: what is running, model + router tier and reasons, spend, context pressure, tool timeline + inspector, plan progress, turn history, last provider error with a hint | (panel) |
+| `provider-login/` | OAuth / device-code sign-in surface (GitHub Copilot): "Sign in with GitHub" on the provider card in Settings → Models, code + Copy + verification link | `/login` |
+| `smart-router/` | Toggle button in the composer tool row that, when ON, runs every loop call (main agent AND subagents) through an optimised orchestration: main agent capability-first, subagents cost-first | `/smartrouter` |
 
 ## model-router
 
@@ -97,6 +99,92 @@ Bump `STATE_VERSION` in `index.js` whenever the fold or state shape changes.
 Test without booting: `buildProjection(Config(cfg), prices, decisions)` gives
 the definition; replay a decompressed session log through `init`/`apply` and
 call `wire.view(state)` (see the replay snippet in the project history).
+
+## smart-router
+
+A toggle in the bottom-right of the chatbox (the `conversation.input.right`
+slot, left of the model picker) that, when ON, switches the sibling
+`model-router` into an *optimised orchestration* mode. Designed to deliver
+the "most capable model per task, while optimising cost" split the button
+advertises.
+
+The host half (`index.js`) owns a single boolean, `smartEnabled`, exported
+on the shared `smartBridge` object the `model-router` reads at every request.
+The toggle is process-global and persists in
+`$DSH_HOME/smart-router/state.json`, so it survives restarts. Browser ↔ host
+sync: `GET /smart-router/state` and `POST /smart-router/state` on the harness
+webServer, both gated by `connection.requestRejection(req)` (Host/Origin +
+signed browser-session cookie, same as `git-lens`). The browser polls every
+5 s while visible and on focus, so multiple tabs stay aligned.
+
+The browser half (`client.js`, hot-reloaded) is a single rounded pill in the
+composer tool row: a small dot + the label `Smart Router: ON`/`OFF`. Hover
+shows what each mode does. Optimistic click — flips the UI, then POSTs;
+rolls back if the request fails. Disabled state during the in-flight POST.
+
+What actually changes when ON:
+
+- **Main agent** (sessions whose `meta.origin !== 'subagent'`):
+  - `reasoning` tier threshold drops from score ≥ 3 to ≥ 2 (capability-first).
+  - Escalate to `reasoning` on the FIRST errored tool call instead of
+    `escalateOnToolErrors` (typically 2).
+  - A lone code-fence prompt (no other strong reasoning signal) gets a small
+    bump toward `reasoning`.
+- **Subagents** (`meta.origin === 'subagent'`):
+  - Reasoning-keyword hits on short prompts are dampened (a keyword match
+    inside a subagent is more often a narrow lookup than a design task).
+  - Short prompts bias toward `fast`; otherwise stays on `standard`.
+  - `reasoning` is reached only when the post-damping reasoning score is ≥ 2 AND the
+    prompt is longer than `longPromptWords` (cost-first).
+- **Auxiliary** calls (compaction summaries, session titles) and `mode:
+  off` behaviour are unchanged.
+
+`/smartrouter status|on|off` mirrors the button. `/router status` also shows
+the current smart flag and tags the last decision with `(subagent)` when
+relevant, so the smart-vs-auto delta is visible from the chat.
+
+Files:
+
+- `plugins/smart-router/index.js` — host: `smartBridge` export, state
+  persistence, two webServer routes, `/smartrouter` slash command.
+- `plugins/smart-router/client.js` — browser: button component + slot
+  registration.
+- `plugins/smart-router/package.json` — declares `dsh.client` (web) and
+  `exports["./client"]` so the loader serves the browser half.
+
+Config (`cordis.patch.yml`): `stateFile` (default
+`$DSH_HOME/smart-router/state.json`), `defaultSmart` (initial value before
+the file exists).
+
+## provider-login
+
+OAuth / device-code sign-in for model providers — GitHub Copilot first.
+The harness's pi-ai adapter registers an *authorization flow* for every
+catalog provider that ships a login (`ctx.authorization.registerFlow`,
+key `llm-pi-ai/<provider>`), and pi-ai implements GitHub's device-code
+flow for Copilot; but nothing in this web build ever calls
+`ctx.authorization.begin`, so the Models page only offered an API-key box.
+
+- **Host** (`index.js`): routes under `/provider-login` (cookie-gated like
+  git-lens): `flows` (registered flows + whether a grant is stored),
+  `begin?key&method` (starts the attempt and returns at once), `status?key`
+  (notices so far — message / url / code — plus any pending prompt and the
+  outcome), `answer?key` (`{value}` or `{decline:true}`), `cancel?key`,
+  `signout?key` (deletes the grant). Also `/login <provider>` in chat: starts
+  the flow and prints the code + page. Notices never carry secrets; the
+  grant is written by the flow itself through the credentials service
+  (`.credentials.yaml`, kind `grant`).
+- **Browser** (`client.js`): registers into `settings.models.provider-card`
+  (keyed by the settings namespace `llm-pi-ai`, so it renders on every pi-ai
+  card and hides itself for routes without a flow). Shows signed-in state,
+  **Sign in with GitHub**, the device code in large type with **Copy code**,
+  a button that opens the verification page, prompts, Cancel, Sign out.
+  Polls `status` every 1.5 s while an attempt runs.
+- **Provider side**: `settings.yaml` needs `github-copilot: {}` (no
+  `apiKeyEnv` — a route without one authenticates from pi-ai's stored
+  credential, which is the grant). `cordis.patch.yml` has a router tier
+  profile for it; pi-ai filters the model catalog to what the subscription
+  exposes.
 
 ## vendor/dsh-session-search (third-party, vendored)
 

@@ -47,6 +47,12 @@
             fast:      { model: deepseek-v4-flash }  # $0.14 / $0.28
             standard:  { model: deepseek-v4-flash }
             reasoning: { model: deepseek-v4-pro }    # $0.435 / $0.87
+          # GitHub Copilot (OAuth via provider-login; models are what your
+          # subscription exposes — pi-ai filters the catalog by the grant)
+          github-copilot:
+            fast:      { model: gpt-5-mini }         # list $0.25 / $2 (subscription-metered in practice)
+            standard:  { model: claude-sonnet-4.5 }  # $3 / $15
+            reasoning: { model: claude-opus-4.5 }    # $5 / $25
           # OpenRouter (custom pi-ai provider, id `openrouter`)
           openrouter:
             fast:      { model: deepseek/deepseek-v4-flash }
@@ -128,12 +134,45 @@
         maxBlameLines: 3000
         restrictToWorkspaces: true
 
+    # ── Provider login (OAuth / device code) ─────────────────────────────────
+    # The pi-ai adapter registers an authorization flow for every catalog
+    # provider with a login (GitHub Copilot: GitHub device-code OAuth), but this
+    # web build never starts one. This plugin adds the surface: a "Sign in with
+    # GitHub" control on the provider's card in Settings → Models (code + Copy
+    # button + verification link, prompts, cancel, sign out), routes under
+    # /provider-login/* (cookie-gated like git-lens) and `/login <provider>`.
+    # The harness ships the authorization seam (`ctx.authorization`) but the
+    # web bundle does not mount it — which is why no login flow could ever be
+    # started. Mount it here; the pi-ai adapter registers its flows into it.
+    - id: authorization
+      name: '@deepseek-ai/dsh-authorization'
+      config: {}
+    - id: provider-login
+      name: ./plugins/provider-login/index.js
+      config:
+        prefix: /provider-login
+        retainMs: 600000
+
     # ── UI fixes ─────────────────────────────────────────────────────────────
     # Client-only CSS overrides for third-party UI plugins whose theme tokens
     # drifted from this harness build (TokenLedger's translucent popover).
     - id: ui-fixes
       name: ./plugins/ui-fixes/index.js
       config: {}
+
+    # ── Smart Model Router ───────────────────────────────────────────────────
+    # Chatbox button (bottom-right of the composer tool row, left of the model
+    # picker) that toggles an "optimised orchestration" mode for the sibling
+    # model-router plugin: main agent becomes capability-first (lower
+    # reasoning threshold + escalation on the first errored tool), subagents
+    # stay cost-first (dampened keyword hits, prefer fast/standard). State is
+    # persisted in $DSH_HOME/smart-router/state.json and mirrored in /router
+    # status. Toggle from chat: /smartrouter status|on|off.
+    - id: smart-router
+      name: ./plugins/smart-router/index.js
+      config:
+        stateFile: !!js dshHomePath('smart-router/state.json')
+        defaultSmart: false
 
     # ── Token ledger ─────────────────────────────────────────────────────────
     # Prices every request before it is sent (system + tools + messages, plus a

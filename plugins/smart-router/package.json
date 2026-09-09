@@ -1,0 +1,21 @@
+{
+  "name": "smart-router",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Smart Model Router: chatbox toggle that runs the main agent capability-first and subagents cost-first through the existing model-router plugin.",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-layout"
+      ]
+    }
+  }
+}
