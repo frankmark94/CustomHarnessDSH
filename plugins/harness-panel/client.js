@@ -63,6 +63,10 @@ window.__ModuleLoader__.load({
 .hp-turn .hp-tm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hp-turn .hp-tc{color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}
 .hp-muted{color:var(--dsw-alias-label-tertiary)}
+/* header toggle: mirrors the shipped "Session log" utility button */
+.hp-toggle{border:.5px solid var(--dsw-alias-border-l4);height:32px;color:var(--dsw-alias-label-primary);font-family:var(--dsw-font-family);cursor:pointer;background:0 0;border-radius:18px;justify-content:center;align-items:center;gap:6px;padding:6px 12px;font-size:13px;font-weight:400;line-height:20px;display:inline-flex;white-space:nowrap}
+.hp-toggle:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.hp-toggle[data-open="1"]{background:var(--dsw-alias-bg-module-platform)}
 `;
     if (typeof document !== 'undefined' && document.querySelector('style[data-plugin-css="harness-panel"]') === null) {
       const tag = document.createElement('style');
@@ -224,11 +228,39 @@ window.__ModuleLoader__.load({
     // The column starts closed in the shipped layout and only opens on a tool
     // click. A dashboard wants to be visible while the agent works, so open it
     // when a session view mounts — unless the user closed it during this page
-    // load, which we respect for the rest of the visit.
+    // load, which we respect for the rest of the visit. The header "Harness"
+    // button toggles it back at any time; `ctx.layout` exposes no open/closed
+    // read, so we track what we asked for ourselves.
     let userClosed = false;
+    const panelState = { open: false, listeners: new Set() };
+    function setPanelOpen(open) {
+      panelState.open = open;
+      for (const fn of panelState.listeners) fn(open);
+    }
+    function usePanelOpen() {
+      const [open, setOpen] = React.useState(panelState.open);
+      React.useEffect(() => {
+        panelState.listeners.add(setOpen);
+        return () => panelState.listeners.delete(setOpen);
+      }, []);
+      return open;
+    }
+
+    function HeaderToggle({ openDetails, closeDetails }) {
+      const open = usePanelOpen();
+      return h('button', {
+        type: 'button', className: 'hp-toggle', 'data-open': open ? '1' : undefined,
+        title: open ? 'Hide the Harness panel' : 'Show the Harness panel',
+        onClick: () => {
+          if (open) { userClosed = true; closeDetails(); setPanelOpen(false); }
+          else { userClosed = false; openDetails(); setPanelOpen(true); }
+        },
+      }, h('span', { className: 'hp-dot', 'data-on': open ? '1' : undefined, style: { width: 7, height: 7 } }), 'Harness');
+    }
+
     function HarnessPanel({ useProjection, useSession, closeDetails, openDetails }) {
       React.useEffect(() => {
-        if (!userClosed) { try { openDetails(); } catch { /* layout not wired yet */ } }
+        if (!userClosed) { try { openDetails(); setPanelOpen(true); } catch { /* layout not wired yet */ } }
       }, []);
       const p = useProjection('harnessPanel');
       const pressure = useProjection('contextPressure');
@@ -241,7 +273,7 @@ window.__ModuleLoader__.load({
         h('div', { className: 'hp-header' },
           h('span', { className: 'hp-dot', 'data-on': active ? '1' : undefined, 'data-err': !active && status ? '1' : undefined }),
           h('div', { className: 'hp-title' }, 'Harness'),
-          h('button', { type: 'button', className: 'hp-close', 'aria-label': 'Close', onClick: () => { userClosed = true; closeDetails(); } },
+          h('button', { type: 'button', className: 'hp-close', 'aria-label': 'Close', onClick: () => { userClosed = true; closeDetails(); setPanelOpen(false); } },
             h('svg', { viewBox: '0 0 16 16', width: 14, height: 14, 'aria-hidden': true },
               h('path', { d: 'M4 4l8 8M12 4l-8 8', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' })))),
         h('div', { className: 'hp-body' },
@@ -271,6 +303,17 @@ window.__ModuleLoader__.load({
             openDetails: () => ctx.layout.openDetails(),
           }),
         }, HarnessPanel));
+        // "Harness" toggle in the session header, left of "Session log".
+        ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register({
+          name: 'conversation.session.header.utilities',
+          id: 'harness-panel-toggle',
+          order: -10,
+          label: 'Harness',
+          inject: () => ({
+            openDetails: () => ctx.layout.openDetails(),
+            closeDetails: () => ctx.layout.closeDetails(),
+          }),
+        }, HeaderToggle));
       },
     };
   },
