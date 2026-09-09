@@ -53,10 +53,15 @@
           # in .credentials.yaml). Free Copilot (2026-09-09): gpt-5-mini,
           # gpt-5.6-luna, gpt-4.1, claude-haiku-4.5, mai-code-1.1-flash, …
           # A paid plan adds the Claude Sonnet/Opus and GPT-5.x models — swap then.
+          # Probed 2026-09-09 with the stored free-plan token: only gpt-4.1 /
+          # gpt-4o / gpt-4o-mini answer; gpt-5-mini, gpt-5.6-luna and
+          # claude-haiku-4.5 return "model_not_supported" on every endpoint.
+          # gpt-4.1 is the one of those in pi-ai's catalog, so all tiers use it
+          # until the plan (or Copilot) exposes more — then split the tiers.
           github-copilot:
-            fast:      { model: gpt-5-mini }         # list $0.25 / $2, 264k ctx
-            standard:  { model: gpt-5.6-luna }       # $0.20 / $1.20, 1M ctx, reasoning
-            reasoning: { model: gpt-5.6-luna }       # strongest model on the free plan
+            fast:      { model: gpt-4.1 }            # list $2 / $8, 128k ctx
+            standard:  { model: gpt-4.1 }
+            reasoning: { model: gpt-4.1 }
           # OpenRouter (custom pi-ai provider, id `openrouter`)
           openrouter:
             fast:      { model: deepseek/deepseek-v4-flash }
