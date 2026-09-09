@@ -1,0 +1,22 @@
+{
+  "name": "dictation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Voice dictation for the DeepSeek Harness web UI: a Dictation settings page (enable, speech-to-text provider/model, language), a mic button in the composer with a live waveform and real-time transcript, and a host route that forwards audio to the chosen STT provider so keys never reach the browser.",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
+    }
+  }
+}

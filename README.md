@@ -21,6 +21,7 @@
   <a href="#harness-panel"><img alt="harness-panel" src="https://img.shields.io/badge/harness--panel-live%20dashboard-0969da?style=flat-square"></a>
   <a href="#git-lens"><img alt="git-lens" src="https://img.shields.io/badge/git--lens-Git%20tab-0969da?style=flat-square"></a>
   <a href="#provider-login"><img alt="provider-login" src="https://img.shields.io/badge/provider--login-OAuth%20sign--in-0969da?style=flat-square"></a>
+  <a href="#dictation"><img alt="dictation" src="https://img.shields.io/badge/dictation-mic%20%2B%20live%20transcript-0969da?style=flat-square"></a>
   <a href="#claude-bridge"><img alt="claude-bridge" src="https://img.shields.io/badge/claude--bridge-memory%20%2B%20skills-0969da?style=flat-square"></a>
   <a href="#session-search"><img alt="session-search" src="https://img.shields.io/badge/session--search-dsh%20%7C%20Codex%20%7C%20Claude%20%7C%20OpenCode-0969da?style=flat-square"></a>
   <a href="#ui-fixes"><img alt="ui-fixes" src="https://img.shields.io/badge/ui--fixes-CSS%20overrides-0969da?style=flat-square"></a>
@@ -112,6 +113,14 @@ same signed browser-session cookie as the UI and restricted to registered worksp
 
 ### provider-login
 OAuth sign-in for providers that ship a login flow. See [GitHub Copilot by OAuth](#github-copilot-by-oauth).
+
+### dictation
+Voice input. **Settings → Dictation** has an enable switch and an engine selector that lists the
+browser's built-in speech recognition (no key, live interim words) and server transcription models
+from OpenAI, Groq and Mistral, each selectable only once its key is stored, plus a custom
+OpenAI-compatible endpoint. When enabled, a **mic button** appears in the composer: click it and a
+panel shows a live waveform with the transcript as it is recognised, while the words stream straight
+into the message box. Audio for server engines goes through the harness with a host-resolved key.
 
 ### claude-bridge
 Injects Claude Code's memory **for the session's workspace** (`~/.claude/projects/<key>/memory`),

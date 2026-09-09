@@ -181,6 +181,22 @@
         prefix: /provider-login
         retainMs: 600000
 
+    # ── Dictation ────────────────────────────────────────────────────────────
+    # Settings → Dictation (enable, speech-to-text engine + model, language),
+    # a mic button in the composer with a live waveform + real-time transcript,
+    # and /dictation/* routes: audio is forwarded to the chosen engine with a
+    # key resolved through the credentials service (never sent to the browser).
+    # Engines: the browser's own speech recognition (no key), OpenAI / Groq /
+    # Mistral transcription (available once their key is stored), or a custom
+    # OpenAI-compatible endpoint. Settings in $DSH_HOME/dictation/settings.json.
+    - id: dictation
+      name: ./plugins/dictation/index.js
+      config:
+        prefix: /dictation
+        settingsFile: !!js dshHomePath('dictation/settings.json')
+        maxAudioBytes: 26214400
+        timeoutMs: 60000
+
     # ── UI fixes ─────────────────────────────────────────────────────────────
     # Client-only CSS overrides for third-party UI plugins whose theme tokens
     # drifted from this harness build (TokenLedger's translucent popover).

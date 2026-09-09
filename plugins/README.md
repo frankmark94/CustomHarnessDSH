@@ -11,6 +11,7 @@ file apply live; edits to the plugin code need a restart of `start-dsh.cmd`.
 | `model-router/` | Chooses a **fast / standard / reasoning** model for each call, per provider | `/router` |
 | `token-ledger/` | Adds up **expected** tokens before each call and reconciles with **actual** usage; tallies per session, per model, per day, in tokens and USD | `/tokens` |
 | `harness-panel/` | Right-hand live dashboard in the web UI: what is running, model + router tier and reasons, spend, context pressure, tool timeline + inspector, plan progress, turn history, last provider error with a hint | (panel) |
+| `dictation/` | Voice input: Settings → Dictation (enable, STT engine + model, language) and a composer mic button with live waveform and real-time transcript into the draft | (button) |
 | `provider-login/` | OAuth / device-code sign-in surface (GitHub Copilot): "Sign in with GitHub" on the provider card in Settings → Models, code + Copy + verification link | `/login` |
 | `smart-router/` | Toggle button in the composer tool row that, when ON, runs every loop call (main agent AND subagents) through an optimised orchestration: main agent capability-first, subagents cost-first | `/smartrouter` |
 
@@ -155,6 +156,40 @@ Files:
 Config (`cordis.patch.yml`): `stateFile` (default
 `$DSH_HOME/smart-router/state.json`), `defaultSmart` (initial value before
 the file exists).
+
+## dictation
+
+Voice input for the composer.
+
+- **Settings → Dictation** (`settings.section`, id `dictation`): enable
+  switch; engine selector listing the browser's own speech recognition
+  (Chrome/Edge, no key, live interim results) and the server engines from
+  the plugin's catalog — OpenAI (`gpt-4o-mini-transcribe`, `gpt-4o-transcribe`,
+  `whisper-1`), Groq (`whisper-large-v3-turbo`, `whisper-large-v3`), Mistral
+  (`voxtral-mini-latest`) — each marked available only when its key
+  (`OPENAI_API_KEY`, `GROQ_API_KEY`, `MISTRAL_API_KEY`) resolves through the
+  credentials service or the launch environment, i.e. once that provider is
+  added on the Models page; plus a custom OpenAI-compatible endpoint (base URL
+  + key name + model). Model selector, language (BCP-47), chunk length,
+  microphone test, status.
+- **Mic button** (`conversation.input.right`, id `dictation-mic`, left of the
+  Smart Router pill): rendered only when dictation is enabled AND the chosen
+  engine is available. Click to start; a panel above the composer shows a
+  pulsing "Listening" header, a live waveform (Web Audio analyser), and the
+  transcript (final text plus grey interim text). The text streams into the
+  draft via `inputActions.setDraft(base + final + interim)`, where `base` is
+  whatever was already typed. Click again or press Esc to stop.
+- **Host** (`index.js`): `/dictation/providers`, `GET|POST /dictation/settings`
+  (persisted in `$DSH_HOME/dictation/settings.json`, ignored by git), and
+  `POST /dictation/transcribe` — raw audio body forwarded as multipart to
+  `{baseURL}/audio/transcriptions` with the key resolved host-side. Server
+  engines record in complete MediaRecorder chunks of `chunkSeconds` (each a
+  standalone WebM file), so the transcript grows every few seconds; the
+  previous text is passed as `prompt` for continuity.
+
+Helpers exported for tests: `mergeSettings`, `resolveEngine`,
+`DEFAULT_SETTINGS`. Replay: fake ctx with `webServer.register` capturing the
+handler, `get('credentials')` stubbed, and a stubbed global `fetch`.
 
 ## provider-login
 

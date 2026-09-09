@@ -20,12 +20,17 @@ llm-pi-ai:
     # the Models page (device-code flow: copy the code, approve on
     # github.com/login/device). pi-ai refreshes the Copilot token itself.
     github-copilot: {}
+    opencode:
+      apiKeyEnv: OPENCODE_API_KEY
+    openai-codex: {}
 ui-onboarding:
   welcomeNoticeVersion: 2026-08-13.1
 agent-default-model:
-  provider: opencode-go # your $10/month plan. `opencode` (Zen) needs prepaid credits.
-  model: glm-5.3 # the router re-picks the tier per call anyway
+  provider: openai-codex # your $10/month plan. `opencode` (Zen) needs prepaid credits.
+  model: gpt-5.6-sol # the router re-picks the tier per call anyway
 ui-theme:
   preference: dark
 agent-presets:
   default: standard
+ui-chat:
+  transcriptView: normal
