@@ -87,7 +87,10 @@ window.__ModuleLoader__.load({
         return () => { alive = false; clearInterval(t); };
       }, [flow, attempt?.status]);
 
-      if (!flow) return null;
+      // Only providers with a real OAuth method get a card. Every pi-ai
+      // catalog provider also registers an api-key "flow" (a typed prompt),
+      // but for those the shipped API-key box on the card is the right UI.
+      if (!flow || !flow.methods.some((m) => m.id === 'oauth')) return null;
       const start = async (methodId) => {
         setBusy(true); setErr(null);
         try { const b = await api('begin', { key: flow.key, method: methodId }, { method: 'POST' }); setAttempt(b.attempt); }
@@ -107,7 +110,7 @@ window.__ModuleLoader__.load({
           h('strong', null, flow.label), status,
           h('span', { className: 'pl-muted' }, 'OAuth — no API key needed'),
           h('span', { style: { marginLeft: 'auto' } }),
-          !running ? flow.methods.map((m) => h('button', { key: m.id, className: 'pl-btn', 'data-primary': m.id === 'oauth' && !signedIn ? '1' : undefined, disabled: busy, onClick: () => start(m.id) }, signedIn ? `Re-sign in (${m.label})` : (m.id === 'oauth' ? `Sign in with ${/copilot|github/i.test(flow.label) ? 'GitHub' : m.label}` : m.label))) : h('button', { className: 'pl-btn', onClick: cancel }, 'Cancel'),
+          !running ? flow.methods.filter((m) => m.id === 'oauth').map((m) => h('button', { key: m.id, className: 'pl-btn', 'data-primary': !signedIn ? '1' : undefined, disabled: busy, onClick: () => start(m.id) }, signedIn ? 'Re-sign in' : `Sign in with ${/copilot|github/i.test(flow.label) ? 'GitHub' : m.label}`)) : h('button', { className: 'pl-btn', onClick: cancel }, 'Cancel'),
           signedIn && !running ? h('button', { className: 'pl-btn', disabled: busy, onClick: signOut }, 'Sign out') : null),
         running && latest ? h('div', { className: 'pl-notice' },
           h('div', null, latest.message),
