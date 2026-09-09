@@ -26,3 +26,5 @@ _to_delete/
 /harness-panel/
 # TokenLedger (third-party plugin, installed into profiles/web) database
 /tokenledger.sqlite*
+# Stray screenshots / captures
+/*.png
